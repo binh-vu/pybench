@@ -1,0 +1,20 @@
+[package]
+name = "benchpyo3"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "benchpyo3"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = { version = "1.0.58", features = ["backtrace"] }
+thiserror = "1.0.31"
+pyo3 = { version = "0.19.1", features = ["anyhow", "multiple-pymethods"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
+hashbrown = { version = "0.14.0", features = ["serde"] }
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]

@@ -1,0 +1,217 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Iterator
+
+import benchpyo3.core  # type: ignore
+import orjson
+import serde.jl
+import serde.textline
+
+from pybench.base import BenchSetup
+from pybench.helper import get_module
+
+RESOURCE_DIR = Path(__file__).parent.parent.parent / "resources"
+
+
+class Python:
+    def __init__(self):
+        self.raw = serde.textline.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+        self.records = serde.jl.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+        self.len = len
+
+    @staticmethod
+    def doing_nothing():
+        ...
+
+    @staticmethod
+    def return_5():
+        return 5
+
+    def get_wikidata_numeric_id(self):
+        for r in self.records:
+            int(r["id"][1:])
+
+    def get_n_labels(self):
+        size = 0
+        for r in self.raw:
+            size += len(orjson.loads(r)["label"])
+        return size
+
+    def get_uppercase(self):
+        return "o0.uppercase(); o1.uppercase()"
+
+    def get_text_len(self):
+        len = self.len
+        len(self.raw[0])
+        len(self.raw[1])
+        # size = 0
+        # for r in self.raw:
+        #     size += len(r)
+        # return size
+
+    get_text_len_2 = get_text_len
+    get_text_len_3 = get_text_len
+    get_text_len_4 = get_text_len
+
+
+class Rust:
+    doing_nothing = benchpyo3.core.doing_nothing
+    return_5 = benchpyo3.core.return_5
+
+    def __init__(self):
+        self.raw = serde.textline.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+        self.records = serde.jl.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+
+    def get_wikidata_numeric_id(self):
+        get_wikidata_numeric_id = benchpyo3.core.get_wikidata_numeric_id
+        for r in self.records:
+            get_wikidata_numeric_id(r["id"])
+
+    def get_n_labels(self):
+        fn = benchpyo3.core.get_n_labels
+        size = 0
+        for r in self.raw:
+            size += fn(r)
+        return size
+
+    def get_text_len(self):
+        fn = benchpyo3.core.get_text_len
+        fn(self.raw[0])
+        fn(self.raw[1])
+
+    def get_uppercase(self):
+        return "uppercase(o0); uppercase(o1)"
+
+    def get_text_len_2(self):
+        fn = benchpyo3.core.get_text_len_2
+        size = 0
+        for r in self.raw:
+            size += fn(r)
+        return size
+
+    def get_text_len_3(self):
+        fn = benchpyo3.core.get_text_len_3
+        size = 0
+        for r in self.raw:
+            size += fn(r)
+        return size
+
+    def get_text_len_4(self):
+        fn = benchpyo3.core.get_text_len_4
+        size = 0
+        for r in self.raw:
+            size += fn(r)
+        return size
+
+
+class PythonObject:
+    @dataclass
+    class EntityLabel:
+        id: str
+        label: dict[str, str]
+
+        def get_wikidata_numeric_id(self, id: str):
+            return int(id[1:])
+
+        def doing_nothing(self):
+            ...
+
+        def return_5(self):
+            return 5
+
+        @staticmethod
+        def get_n_labels(r):
+            o = PythonObject.EntityLabel(**orjson.loads(r))
+            return len(o.label)
+
+    def __init__(self):
+        self.raw = serde.textline.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+        self.records = serde.jl.deser(RESOURCE_DIR / "entity_labels.jl.gz")
+
+        self.object = self.get_object_from_str(self.raw[0])
+        self.objects = [self.get_object_from_str(r) for r in self.raw]
+
+    def get_object_from_str(self, json: str):
+        return self.EntityLabel(**orjson.loads(json))
+
+    def doing_nothing(self):
+        return self.object.doing_nothing()
+
+    def return_5(self):
+        return self.object.return_5()
+
+    def get_wikidata_numeric_id(self):
+        for r in self.records:
+            self.object.get_wikidata_numeric_id(r["id"])
+
+    def parse_object_from_str(self):
+        for r in self.raw:
+            self.get_object_from_str(r)
+
+    def get_n_labels(self):
+        cls = self.EntityLabel
+        size = 0
+        for r in self.raw:
+            size += cls.get_n_labels(r)
+        return size
+
+
+class RustObject(PythonObject):
+    def get_object_from_str(self, json: str):
+        return benchpyo3.core.EntityLabel.from_json(json)
+
+    def get_n_labels(self):
+        cls = benchpyo3.core.EntityLabel
+        size = 0
+        for r in self.raw:
+            size += cls.get_n_labels(r)
+        return size
+
+
+@dataclass
+class BenchCallFn(BenchSetup):
+    bench: str
+    method: str
+
+    def get_bench_name(self) -> str:
+        return self.bench
+
+    def get_method_name(self) -> str:
+        return self.method
+
+    def get_setup(self):
+        module = get_module(__file__)
+        return "\n".join(
+            [
+                f"from {module} import {self.method}",
+                f"obj = {self.method}()",
+                "o0 = obj.raw[0]",
+                "o1 = obj.raw[1]",
+            ]
+        )
+
+    def get_statement(self):
+        if self.bench == "get_uppercase":
+            return globals()[self.method]().get_uppercase()
+        return f"obj.{self.bench}()"
+
+    @staticmethod
+    def iter_configs(default_cfg: dict) -> Iterator[BenchCallFn]:
+        for bench in [
+            "doing_nothing",
+            "return_5",
+            # "get_wikidata_numeric_id",
+            # "parse_object_from_str",
+            "get_uppercase",
+            # "get_text_len",
+            # "get_text_len_2",
+            # "get_text_len_3",
+            # "get_text_len_4",
+        ]:
+            for method in ["Rust", "Python", "PythonObject", "RustObject"][:2]:
+                yield BenchCallFn(
+                    bench=bench,
+                    method=method,
+                )
