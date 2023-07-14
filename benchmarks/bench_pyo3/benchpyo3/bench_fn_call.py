@@ -81,6 +81,7 @@ class Rust:
     is_numeric_id_even = benchpyo3.core.is_numeric_id_even
     is_numeric_id_even_2 = benchpyo3.core.is_numeric_id_even_2
     is_numeric_id_even_3 = benchpyo3.core.is_numeric_id_even_3
+    create_range = benchpyo3.core.create_range
 
 
 @dataclass

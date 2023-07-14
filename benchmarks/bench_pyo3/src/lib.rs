@@ -4,7 +4,7 @@ mod object;
 use error::into_pyerr;
 use pyo3::{
     prelude::*,
-    types::{PyBytes, PyString},
+    types::{PyBytes, PyList, PyString},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -69,6 +69,35 @@ fn is_numeric_id_even_3(id: usize) -> bool {
     id % 2 == 0
 }
 
+#[pyfunction]
+fn create_range_1(py: Python, n: usize) -> &PyList {
+    let elements: Vec<usize> = (0..n).collect();
+    PyList::new(py, elements)
+}
+
+#[pyfunction]
+fn create_range_2(py: Python, n: usize) -> &PyList {
+    let mut elements = Vec::with_capacity(n);
+    for i in 0..n {
+        elements.push(i);
+    }
+    PyList::new(py, elements)
+}
+
+#[pyfunction]
+fn create_range_3(py: Python, n: usize) -> &PyList {
+    PyList::new(py, 0..n)
+}
+
+#[pyfunction]
+fn create_range_4(py: Python, n: usize) -> &PyList {
+    let mut lst = PyList::empty(py);
+    for i in 0..n {
+        lst.append(i);
+    }
+    lst
+}
+
 #[pymodule]
 fn core(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -85,6 +114,10 @@ fn core(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_numeric_id_even, m)?)?;
     m.add_function(wrap_pyfunction!(is_numeric_id_even_2, m)?)?;
     m.add_function(wrap_pyfunction!(is_numeric_id_even_3, m)?)?;
+    m.add_function(wrap_pyfunction!(create_range_1, m)?)?;
+    m.add_function(wrap_pyfunction!(create_range_2, m)?)?;
+    m.add_function(wrap_pyfunction!(create_range_3, m)?)?;
+    m.add_function(wrap_pyfunction!(create_range_4, m)?)?;
 
     m.add_class::<self::object::EntityLabel>()?;
     m.add_class::<self::object::FrozenEntityLabel>()?;
